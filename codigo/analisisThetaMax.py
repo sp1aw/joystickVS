@@ -5,9 +5,10 @@ import math
 FILE_PATH = "ensayos_imu.csv"
 ALPHA = 0.98  # Factor del Filtro Complementario
 DT = 0.01     # 10 ms por muestra
+MAX_TRIALS = 40  # Límite de ensayos a analizar
 
 def analizar_ensayos_consistente(filepath):
-    # Cargar CSV manejando posibles problemas de codificacion (acentos/latin1)
+    # Cargar CSV manejando posibles problemas de codificación
     try:
         df = pd.read_csv(filepath, encoding='utf-8')
     except UnicodeDecodeError:
@@ -27,12 +28,21 @@ def analizar_ensayos_consistente(filepath):
     # Normalizar encabezados eliminando espacios accidentales
     df.columns = df.columns.str.strip()
 
+    # =========================================================
+    # FILTRADO: Tomar únicamente los primeros MAX_TRIALS trials
+    # =========================================================
+    df = df[df['trial_id'] <= MAX_TRIALS].copy()
+
+    if df.empty:
+        print(f"No hay datos registrados en los primeros {MAX_TRIALS} trials.")
+        return
+
     mapa_movimientos = {
-        'derecha': ('angle_z', 'Yaw (Z)'),
-        'izquierda': ('angle_z', 'Yaw (Z)'),
-        'adelante': ('angle_y', 'Pitch (Y)'),
-        'atrás': ('angle_y', 'Pitch (Y)'),
-        'atras': ('angle_y', 'Pitch (Y)')
+        'derecha': ('angle_z', '(Z)'),
+        'izquierda': ('angle_z', '(Z)'),
+        'adelante': ('angle_y', '(Y)'),
+        'atrás': ('angle_y', '(Y)'),
+        'atras': ('angle_y', '(Y)')
     }
 
     resultados = []
@@ -47,10 +57,11 @@ def analizar_ensayos_consistente(filepath):
 
         grupo = grupo.sort_values('sample_id')
 
-        # Convertir velocidades angulares de rad/s a deg/s
-        w_y_deg = np.degrees(grupo['w_y'].values)
-        w_z_deg = np.degrees(grupo['w_z'].values)
+        # Las velocidades angulares YA vienen en °/s desde el CSV
+        w_y_deg = grupo['w_y'].values
+        w_z_deg = grupo['w_z'].values
 
+        # Las aceleraciones vienen en m/s^2
         ax = grupo['a_x'].values
         ay = grupo['a_y'].values
         az = grupo['a_z'].values
@@ -67,6 +78,7 @@ def analizar_ensayos_consistente(filepath):
             acc_y = math.degrees(math.atan2(ax[i], math.sqrt(ay[i]**2 + az[i]**2)))
             acc_z = math.degrees(math.atan2(az[i], math.sqrt(ax[i]**2 + ay[i]**2)))
 
+            # Integración con filtro complementario usando directamente °/s
             angles_y[i] = ALPHA * (angles_y[i-1] + w_y_deg[i] * DT) + (1.0 - ALPHA) * acc_y
             angles_z[i] = ALPHA * (angles_z[i-1] + w_z_deg[i] * DT) + (1.0 - ALPHA) * acc_z
 
@@ -85,11 +97,11 @@ def analizar_ensayos_consistente(filepath):
     df_res = pd.DataFrame(resultados)
 
     if df_res.empty:
-        print("No se encontraron ensayos válidos.")
+        print("No se encontraron ensayos válidos en el rango de los primeros 40 trials.")
         return
 
     print("==================================================")
-    print("  ANÁLISIS CONSISTENTE (FILTRO COMPLEMENTARIO)   ")
+    print(f"  ANÁLISIS CONSISTENTE (PRIMEROS {MAX_TRIALS} TRIALS)")
     print("==================================================")
 
     resumen = df_res.groupby(['Direccion', 'Eje']).agg(

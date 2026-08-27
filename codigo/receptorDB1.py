@@ -16,6 +16,8 @@ CSV_FILE = "ensayos_imu.csv"
 
 ACCEL_SCALE = 0.000061  # g/LSB
 GYRO_SCALE = 0.00875    # °/s/LSB
+MAG_SCALE = 0.15        # µT/LSB (ajusta según la escala del magnetómetro)
+GRAVITY = 9.80665       # m/s^2 por g
 
 CALIBRATION_TIME = 1.0
 PRINT_INTERVAL = 0.15
@@ -29,9 +31,9 @@ HEADERS = [
     "user_id",
     "trial_id",
     "sample_id",
-    "a_x", "a_y", "a_z",
-    "w_x", "w_y", "w_z",
-    "m_x", "m_y", "m_z",
+    "a_x", "a_y", "a_z",      # m/s^2
+    "w_x", "w_y", "w_z",      # °/s
+    "m_x", "m_y", "m_z",      # µT
     "Direccion",
     "velocidad_objetivo"
 ]
@@ -43,7 +45,7 @@ def obtener_ultimo_trial_id(filepath):
     
     ultimo_id = 0
     try:
-        with open(filepath, mode='r', newline='') as f:
+        with open(filepath, mode='r', encoding='latin1', newline='') as f:
             reader = csv.DictReader(f)
             for row in reader:
                 if "trial_id" in row and row["trial_id"].isdigit():
@@ -53,9 +55,42 @@ def obtener_ultimo_trial_id(filepath):
     
     return ultimo_id
 
+def eliminar_ultimo_trial_csv(filepath):
+    """Elimina del CSV todas las filas que corresponden al trial_id mas alto."""
+    if not os.path.exists(filepath):
+        return 0
+
+    filas = []
+    ultimo_id = obtener_ultimo_trial_id(filepath)
+
+    if ultimo_id == 0:
+        return 0
+
+    try:
+        with open(filepath, mode='r', encoding='latin1', newline='') as f:
+            reader = list(csv.reader(f))
+            if not reader:
+                return 0
+            
+            headers = reader[0]
+            filas.append(headers)
+            for row in reader[1:]:
+                if len(row) > 1 and row[1].isdigit():
+                    if int(row[1]) != ultimo_id:
+                        filas.append(row)
+
+        with open(filepath, mode='w', encoding='latin1', newline='') as f:
+            writer = csv.writer(f)
+            writer.writerows(filas)
+
+        return ultimo_id
+    except Exception as e:
+        print(f"Error al borrar ultimo ensayo: {e}")
+        return 0
+
 # Si no existe el CSV, lo crea con encabezados
 if not os.path.exists(CSV_FILE):
-    with open(CSV_FILE, mode='w', newline='') as f:
+    with open(CSV_FILE, mode='w', encoding='latin1', newline='') as f:
         writer = csv.writer(f)
         writer.writerow(HEADERS)
 
@@ -82,57 +117,79 @@ estado = "MOSTRANDO"
 datos_calibracion = []
 tiempo_inicio_cal = None
 ultimo_timestamp = None
+mensaje_alerta = ""
 
 def procesar_paquete(mensaje):
     valores = mensaje.split(",")
-    if len(valores) != 10:
+    # Permite tramas de 7 a 10 valores según si incluye magnetómetro
+    if len(valores) < 7:
         return None
 
     try:
         timestamp = int(valores[0])
         ax_raw, ay_raw, az_raw = int(valores[1]), int(valores[2]), int(valores[3])
         gx_raw, gy_raw, gz_raw = int(valores[4]), int(valores[5]), int(valores[6])
+        
+        # Lectura opcional del magnetómetro en raw
+        if len(valores) >= 10:
+            mx_raw, my_raw, mz_raw = int(valores[7]), int(valores[8]), int(valores[9])
+        else:
+            mx_raw, my_raw, mz_raw = 0, 0, 0
     except ValueError:
         return None
 
+    # Ajuste e intercambio de ejes Y <-> Z y conversión de g a m/s^2
+    ax = (ax_raw * ACCEL_SCALE) * GRAVITY
+    ay = (az_raw * ACCEL_SCALE) * GRAVITY  # Recibe az
+    az = (ay_raw * ACCEL_SCALE) * GRAVITY  # Recibe ay
+
+    # Giroscopio en °/s
+    gx = gx_raw * GYRO_SCALE
+    gy = gz_raw * GYRO_SCALE  # Recibe gz
+    gz = gy_raw * GYRO_SCALE  # Recibe gy
+
+    # Magnetómetro en µT
+    mx = mx_raw * MAG_SCALE
+    my = mz_raw * MAG_SCALE   # Recibe mz
+    mz = my_raw * MAG_SCALE   # Recibe my
+
     return {
         "timestamp": timestamp,
-        "ax": ax_raw * ACCEL_SCALE,
-        "ay": ay_raw * ACCEL_SCALE,
-        "az": az_raw * ACCEL_SCALE,
-        "gx": gx_raw * GYRO_SCALE,
-        "gy": gy_raw * GYRO_SCALE,
-        "gz": gz_raw * GYRO_SCALE
+        "ax": ax,
+        "ay": ay,
+        "az": az,
+        "gx": gx,
+        "gy": gy,
+        "gz": gz,
+        "mx": mx,
+        "my": my,
+        "mz": mz
     }
 
 def guardar_muestra_csv(muestra):
     global sample_counter
     sample_counter += 1
-    
-    mx, my, mz = 0.0, 0.0, 0.0
 
-    wx = math.radians(muestra["gx"])
-    wy = math.radians(muestra["gy"])
-    wz = math.radians(muestra["gz"])
-
+    # Se guardan las velocidades directamente en °/s (muestra['gx'], 'gy', 'gz')
+    # y la aceleración en m/s^2 (muestra['ax'], 'ay', 'az')
     fila = [
         user_id,
         trial_id,
         sample_counter,
         f"{muestra['ax']:.5f}", f"{muestra['ay']:.5f}", f"{muestra['az']:.5f}",
-        f"{wx:.5f}", f"{wy:.5f}", f"{wz:.5f}",
-        f"{mx:.2f}", f"{my:.2f}", f"{mz:.2f}",
+        f"{muestra['gx']:.5f}", f"{muestra['gy']:.5f}", f"{muestra['gz']:.5f}",
+        f"{muestra['mx']:.2f}", f"{muestra['my']:.2f}", f"{muestra['mz']:.2f}",
         direccion_actual,
         f"{velocidad_objetivo:.2f}"
     ]
 
-    with open(CSV_FILE, mode='a', newline='') as f:
+    with open(CSV_FILE, mode='a', encoding='latin1', newline='') as f:
         writer = csv.writer(f)
         writer.writerow(fila)
 
 def verificar_teclas():
     global user_id, trial_id, sample_counter, grabando_ensayo
-    global direccion_actual, velocidad_objetivo, estado, datos_calibracion, tiempo_inicio_cal
+    global direccion_actual, velocidad_objetivo, estado, datos_calibracion, tiempo_inicio_cal, mensaje_alerta
 
     if msvcrt.kbhit():
         tecla = msvcrt.getch().decode('utf-8', errors='ignore').lower()
@@ -147,9 +204,18 @@ def verificar_teclas():
             if not grabando_ensayo:
                 grabando_ensayo = True
                 sample_counter = 0
+                mensaje_alerta = ""
             else:
                 grabando_ensayo = False
                 trial_id += 1  # Siguiente ID para el proximo ensayo
+                mensaje_alerta = ""
+
+        elif tecla == 'd':
+            if not grabando_ensayo:
+                id_eliminado = eliminar_ultimo_trial_csv(CSV_FILE)
+                if id_eliminado > 0:
+                    trial_id = id_eliminado
+                    mensaje_alerta = f"[ ENSAYO {id_eliminado} ELIMINADO ]"
 
         elif tecla in ['1', '2', '3', '4', '5']:
             direcciones = {'1': 'Neutra', '2': 'adelante', '3': 'atrás', '4': 'derecha', '5': 'izquierda'}
@@ -234,6 +300,8 @@ while True:
                 print(f" ID ENSAYO (Trial)   : {trial_id}")
                 print(f" N° MUESTRAS (Sample): {sample_counter}")
                 print(f" ESTADO GRABACIÓN    : {'[ GRABANDO... ]' if grabando_ensayo else '[ DETENIDO ]'}")
+                if mensaje_alerta:
+                    print(f" ALERTA              : {mensaje_alerta}")
                 print("--------------------------------------------------")
                 print(f" DIRECCIÓN           : {direccion_actual}")
                 print(f" VELOCIDAD OBJETIVO  : {velocidad_objetivo:.1f}")
@@ -242,6 +310,7 @@ while True:
                 print("==================================================")
                 print(" CONTROLES DE TECLADO DIRECTO (Sin ENTER):")
                 print("  R       = Iniciar / Detener Grabación")
+                print("  D       = BORRAR ÚLTIMO ENSAYO (Deshacer)")
                 print("  U       = Alternar Usuario (0 / 1)")
                 print("  1 a 5   = Dirección (1:Neut, 2:Adel, 3:Atr, 4:Der, 5:Izq)")
                 print("  + / -   = Subir / Bajar Velocidad")

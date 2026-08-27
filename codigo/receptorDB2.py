@@ -16,6 +16,8 @@ CSV_FILE = "ensayos_imu.csv"
 
 ACCEL_SCALE = 0.000061  # g/LSB
 GYRO_SCALE = 0.00875    # °/s/LSB
+MAG_SCALE = 0.15        # µT/LSB (ajusta según la escala de tu magnetómetro)
+GRAVITY = 9.80665       # m/s^2 por g
 
 CALIBRATION_TIME = 1.0
 PRINT_INTERVAL = 0.15
@@ -27,9 +29,9 @@ TIEMPO_REPOSO_N = 2.0  # Duración en segundos para captura en Neutro
 # ÁNGULOS MÁXIMOS OBTENIDOS EN EL ANÁLISIS PREVIO
 # =========================================================
 ANGULOS_MAXIMOS = {
-    'adelante': 25.0,    # Pitch (Y)
-    'atrás': 25.0,       # Pitch (Y)
-    'izquierda': 30.0,   # Yaw (Z)
+    'adelante': 50.0,    # Pitch (Y)
+    'atrás': 35.0,       # Pitch (Y)
+    'izquierda': 33.0,   # Yaw (Z)
     'derecha': 30.0,     # Yaw (Z)
     'N': 0.0             # Neutro sin movimiento
 }
@@ -52,9 +54,9 @@ HEADERS = [
     "user_id",
     "trial_id",
     "sample_id",
-    "a_x", "a_y", "a_z",
-    "w_x", "w_y", "w_z",
-    "m_x", "m_y", "m_z",
+    "a_x", "a_y", "a_z",      # m/s^2
+    "w_x", "w_y", "w_z",      # °/s
+    "m_x", "m_y", "m_z",      # µT
     "Direccion",
     "velocidad_objetivo"
 ]
@@ -149,43 +151,60 @@ actualizar_objetivo_actual()
 
 def procesar_paquete(mensaje):
     valores = mensaje.split(",")
-    if len(valores) != 10:
+    if len(valores) < 7:
         return None
 
     try:
         timestamp = int(valores[0])
         ax_raw, ay_raw, az_raw = int(valores[1]), int(valores[2]), int(valores[3])
         gx_raw, gy_raw, gz_raw = int(valores[4]), int(valores[5]), int(valores[6])
+        
+        if len(valores) >= 10:
+            mx_raw, my_raw, mz_raw = int(valores[7]), int(valores[8]), int(valores[9])
+        else:
+            mx_raw, my_raw, mz_raw = 0, 0, 0
     except ValueError:
         return None
 
+    # Ajuste e intercambio de ejes Y <-> Z y conversión a m/s^2
+    ax = (ax_raw * ACCEL_SCALE) * GRAVITY
+    ay = (az_raw * ACCEL_SCALE) * GRAVITY  # Recibe az
+    az = (ay_raw * ACCEL_SCALE) * GRAVITY  # Recibe ay
+
+    # Giroscopio en °/s
+    gx = gx_raw * GYRO_SCALE
+    gy = gz_raw * GYRO_SCALE  # Recibe gz
+    gz = gy_raw * GYRO_SCALE  # Recibe gy
+
+    # Magnetómetro en µT
+    mx = mx_raw * MAG_SCALE
+    my = mz_raw * MAG_SCALE   # Recibe mz
+    mz = my_raw * MAG_SCALE   # Recibe my
+
     return {
         "timestamp": timestamp,
-        "ax": ax_raw * ACCEL_SCALE,
-        "ay": ay_raw * ACCEL_SCALE,
-        "az": az_raw * ACCEL_SCALE,
-        "gx": gx_raw * GYRO_SCALE,
-        "gy": gy_raw * GYRO_SCALE,
-        "gz": gz_raw * GYRO_SCALE
+        "ax": ax,
+        "ay": ay,
+        "az": az,
+        "gx": gx,
+        "gy": gy,
+        "gz": gz,
+        "mx": mx,
+        "my": my,
+        "mz": mz
     }
 
 def guardar_muestra_csv(muestra):
     global sample_counter
     sample_counter += 1
-    
-    mx, my, mz = 0.0, 0.0, 0.0
-
-    wx = math.radians(muestra["gx"])
-    wy = math.radians(muestra["gy"])
-    wz = math.radians(muestra["gz"])
 
     fila = [
         user_id,
         trial_id,
         sample_counter,
         f"{muestra['ax']:.5f}", f"{muestra['ay']:.5f}", f"{muestra['az']:.5f}",
-        f"{wx:.5f}", f"{wy:.5f}", f"{wz:.5f}",
-        f"{mx:.2f}", f"{my:.2f}", f"{mz:.2f}",
+        f"{muestra['gx']:.5f}", f"{muestra['gy']:.5f}", f"{muestra['gz']:.5f}",
+        f"{muestra['mx']:.2f}", f"{muestra['my']:.2f}", f"{muestra['mz']:.2f}",
         direccion_actual,
         f"{velocidad_objetivo:.2f}"
     ]
