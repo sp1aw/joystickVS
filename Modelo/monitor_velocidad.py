@@ -34,9 +34,11 @@ while True:
         data, addr = sock.recvfrom(1024)
         mensaje = data.decode().strip()
 
+        # IMPRESIÓN DIRECTA DE CUALQUIER TRAMA CRUDA RECIBIDA
+        print(f"[RAW IP: {addr[0]}] -> {mensaje}")
+
         # Mensajes de estado / error del ESP32 (arranque, sensores, etc.)
         if mensaje.startswith("STATUS") or mensaje.startswith("ERROR"):
-            print(f"[{mensaje}]")
             continue
 
         # Mensaje de velocidad: "VEL,<velocidad>,<angulo_abs>,<w_x>,<w_y>"
@@ -53,14 +55,14 @@ while True:
                 barra_llena = int(ultima_velocidad * 30)
                 barra = "#" * barra_llena + "-" * (30 - barra_llena)
 
-                print("\033[H\033[J", end="")  # limpiar pantalla
-                print("==================================================")
-                print("     MONITOR DE VELOCIDAD - JOYSTICK INTELIGENTE   ")
-                print("==================================================")
+                # NOTA: Se comentó el limpiador de pantalla (\033[H\033[J) 
+                # para que no borre el historial de mensajes crudos recibidos.
+                
+                # print("\033[H\033[J", end="")  # limpiaba pantalla
+                print("--------------------------------------------------")
                 print(f" Angulo de inclinacion : {ultimo_angulo:6.2f} grados")
                 print(f" Giroscopio w_x         : {ultimo_wx:6.2f}")
                 print(f" Giroscopio w_y         : {ultimo_wy:6.2f}")
-                print("--------------------------------------------------")
                 print(f" VELOCIDAD CALCULADA   : {ultima_velocidad:.3f}")
                 print(f" [{barra}]")
                 print("==================================================")
