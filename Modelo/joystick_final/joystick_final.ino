@@ -1,13 +1,14 @@
 #include <WiFi.h>
 #include <WiFiUdp.h>
+#include <WebServer.h>
+#include <Update.h>
 #include <Wire.h>
 #include <LSM6.h>
 #include <LIS3MDL.h>
 #include <math.h>
-#include <ArduinoOTA.h>  // <--- Librería para actualización inalámbrica
 
 // =========================
-// Wi-Fi
+// Wi-Fi & WebServer (WebOTA)
 // =========================
 
 const char* ssid = "Guante_IMU";
@@ -17,6 +18,48 @@ const IPAddress pcIP(192, 168, 4, 2);
 const unsigned int udpPort = 5000;
 
 WiFiUDP udp;
+WebServer server(80);
+
+// Formulario HTML accesible desde el navegador web
+const char* serverIndex = 
+  "<!DOCTYPE html><html><head><meta charset='UTF-8'><title>WebOTA ESP32</title></head>"
+  "<body style='font-family:Arial; padding:20px; background-color:#f4f4f4;'>"
+  "<h2>Actualización de Firmware - Guante IMU</h2>"
+  "<form method='POST' action='/update' enctype='multipart/form-data'>"
+  "<input type='file' name='update' style='margin-bottom:15px;'><br>"
+  "<input type='submit' value='Actualizar Firmware' style='padding:8px 15px; cursor:pointer;'>"
+  "</form></body></html>";
+
+void setupWebOTA() {
+  // Ruta principal para abrir el formulario
+  server.on("/", HTTP_GET, []() {
+    server.sendHeader("Connection", "close");
+    server.send(200, "text/html", serverIndex);
+  });
+  
+  // Ruta /update para procesar la subida del archivo .bin
+  server.on("/update", HTTP_POST, []() {
+    server.sendHeader("Connection", "close");
+    server.send(200, "text/plain", (Update.hasError()) ? "FALLO_ACTUALIZACION" : "OK. Reiniciando ESP32...");
+    delay(1000);
+    ESP.restart();
+  }, []() {
+    HTTPUpload& upload = server.upload();
+    if (upload.status == UPLOAD_FILE_START) {
+      if (!Update.begin(UPDATE_SIZE_UNKNOWN)) {
+        Update.printError(Serial);
+      }
+    } else if (upload.status == UPLOAD_FILE_WRITE) {
+      if (Update.write(upload.buf, upload.currentSize) != upload.currentSize) {
+        Update.printError(Serial);
+      }
+    } else if (upload.status == UPLOAD_FILE_END) {
+      Update.end(true);
+    }
+  });
+
+  server.begin();
+}
 
 // =========================
 // I2C
@@ -74,8 +117,8 @@ void sendMessage(const char* message)
 // =========================================================
 
 void calcularCaracteristicas(int16_t ax_raw, int16_t ay_raw, int16_t az_raw,
-                             int16_t gx_raw, int16_t gy_raw, int16_t gz_raw,
-                             float &angulo_abs, float &w_x, float &w_y)
+                              int16_t gx_raw, int16_t gy_raw, int16_t gz_raw,
+                              float &angulo_abs, float &w_x, float &w_y)
 {
   float a_x = (ax_raw * ACCEL_SCALE) * GRAVITY;
   float a_y = (az_raw * ACCEL_SCALE) * GRAVITY; 
@@ -140,30 +183,16 @@ void setup()
   WiFi.softAP(ssid, password);
   delay(500);
 
+  // Desactivar el modo Sleep del Wi-Fi para evitar desconexiones continuas
+  WiFi.setSleep(false);
+
   // Inicializar UDP
   udp.begin(udpPort);
   sendMessage("STATUS,ESP32_INICIADA");
 
-  // -------------------------
-  // Configuración de Arduino OTA
-  // -------------------------
-  ArduinoOTA.setHostname("GuanteIMU-ESP32");
-  
-  // Opcional: Establecer una contraseña para poder actualizar el código
-  // ArduinoOTA.setPassword("admin123");
-
-  ArduinoOTA.onStart([]() {
-    sendMessage("STATUS,INICIANDO_ACTUALIZACION_OTA");
-  });
-  ArduinoOTA.onEnd([]() {
-    sendMessage("STATUS,ACTUALIZACION_COMPLETADA");
-  });
-  ArduinoOTA.onError([](ota_error_t error) {
-    sendMessage("ERROR,FALLO_OTA");
-  });
-
-  ArduinoOTA.begin();
-  sendMessage("STATUS,OTA_LISTO");
+  // Iniciar servidor de actualización WebOTA
+  setupWebOTA();
+  sendMessage("STATUS,WEBOTA_LISTO");
 
   // -------------------------
   // Inicializar I2C y Sensores
@@ -194,8 +223,8 @@ void setup()
 
 void loop()
 {
-  // Escuchar y procesar peticiones de actualización inalámbrica
-  ArduinoOTA.handle();
+  // Atender peticiones del servidor WebOTA
+  server.handleClient();
 
   unsigned long currentTime = millis();
 
