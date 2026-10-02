@@ -63,19 +63,60 @@ HEADERS = [
 
 def obtener_ultimo_trial_id(filepath):
     if not os.path.exists(filepath):
+        print(f"[DEBUG] El archivo '{filepath}' no existe aún. Se inicia en trial 0.")
         return 0
     
     ultimo_id = 0
+    filas_procesadas = 0
+
     try:
         with open(filepath, mode='r', encoding='latin1', newline='') as f:
-            reader = csv.DictReader(f)
+            # Detecta automáticamente si el delimitador es ',', ';', u otro
+            contenido = f.read()
+            if not contenido.strip():
+                print(f"[DEBUG] El archivo '{filepath}' está vacío.")
+                return 0
+
+            f.seek(0)
+            # Analiza las primeras líneas para ajustar el separador automáticamente
+            dialect = csv.Sniffer().sniff(contenido[:2048]) if len(contenido) > 10 else 'excel'
+            f.seek(0)
+
+            reader = csv.reader(f, dialect)
+            headers = next(reader, None)
+
+            if not headers:
+                return 0
+
+            # Limpia espacios y comillas residuales de las cabeceras
+            headers_limpios = [h.strip().replace('"', '').replace("'", "") for h in headers]
+
+            # Busca el índice de la columna trial_id
+            col_idx = -1
+            for idx, h in enumerate(headers_limpios):
+                if "trial_id" in h:
+                    col_idx = idx
+                    break
+
+            if col_idx == -1:
+                col_idx = 1  # Respaldo a la posición 1 si no encuentra el nombre de la cabecera
+
             for row in reader:
-                if "trial_id" in row and row["trial_id"].isdigit():
-                    ultimo_id = max(ultimo_id, int(row["trial_id"]))
-    except Exception:
-        pass
-    
-    return ultimo_id
+                if len(row) > col_idx:
+                    filas_procesadas += 1
+                    # Extrae el valor, quita comillas y espacios
+                    val_str = row[col_idx].strip().replace('"', '').replace("'", "")
+                    
+                    # Si el valor contiene un número entero, extrae los dígitos
+                    if val_str.isdigit():
+                        ultimo_id = max(ultimo_id, int(val_str))
+
+        print(f"[DEBUG] Archivo leído correctamente: {filas_procesadas} filas procesadas. Último trial_id encontrado: {ultimo_id}")
+        return ultimo_id
+
+    except Exception as e:
+        print(f"[ERROR] Error al leer el último trial_id del CSV: {e}")
+        return 0
 
 def eliminar_ultimo_trial_csv(filepath):
     if not os.path.exists(filepath):
