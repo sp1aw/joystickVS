@@ -6,261 +6,224 @@
 #include <math.h>
 
 // ==============================================================================
-// 1. CONFIGURACIÓN WI-FI Y UDP
+// PARÁMETROS DEL MODELO (theta y scaler)
+// Pegar aquí el bloque que imprime la última celda del notebook,
+// reemplazando todo lo que hay entre INICIO y FIN.
 // ==============================================================================
+// ===== INICIO MODELO =====
+// Generado por el notebook de entrenamiento. No editar a mano.
+const int N_BASE = 17;
+const int NUM_FEATURES = 68;
+const int NUM_CLASSES = 5;
+const int WINDOW_SIZE = 20;
+const int STEP_SIZE = 5;
+const char* CLASS_NAMES[NUM_CLASSES] = { "N", "adelante", "atras", "derecha", "izquierda" };
+const float SCALER_MEAN[NUM_FEATURES] = { -8.8880698f, 0.0618243f, 0.6728556f, 4.7847005f, 3.1937240f, -6.3983187f, -9.1250506f, -0.7806896f, 3.3694630f, 9.6981245f, 55.4759026f, 0.0078084f, 0.0683373f, 0.1012723f, 0.4144720f, -6.2152048f, 1.6042182f, 0.2838521f, 0.4180212f, 0.3547435f, 6.5101255f, 12.2089357f, 13.6060418f, 6.3866096f, 3.4325007f, 3.2463014f, 0.2193496f, 17.8697589f, 0.0435803f, 0.0393311f, 0.0247125f, 3.6052230f, 2.9520912f, 0.9764010f, -9.3680052f, -0.6715716f, 0.0779175f, -5.9469053f, -16.0903620f, -28.1810125f, -18.3780847f, -5.2463029f, -0.9391683f, 9.3126165f, 28.9523314f, -0.0676441f, 0.0035305f, 0.0696440f, -5.8335688f, -11.2019123f, -0.0144678f, -8.3993591f, 0.7915077f, 1.2782804f, 15.4225811f, 22.6072191f, 15.4666315f, -0.3808890f, 3.8101259f, 7.8827318f, 10.0969405f, 85.3771991f, 0.0838269f, 0.1359754f, 0.1387906f, 6.7707411f, -1.2048537f, 3.4163506f };
+const float SCALER_SCALE[NUM_FEATURES] = { 1.8070504f, 2.2434805f, 2.3934430f, 12.4057141f, 50.8696941f, 48.9430651f, 43.6741834f, 21.3318681f, 34.0019277f, 0.2386272f, 48.4642463f, 0.2748214f, 0.2916036f, 0.1287402f, 12.9012225f, 14.8998839f, 4.9279304f, 0.3133088f, 0.3826814f, 0.3359197f, 5.9822083f, 12.2990571f, 14.5126336f, 7.3308227f, 2.9232867f, 4.2269162f, 0.2479460f, 15.4799875f, 0.0396084f, 0.0391501f, 0.0280619f, 3.1016678f, 2.7725931f, 1.4119975f, 1.5478159f, 2.2619842f, 2.4455518f, 15.5687429f, 53.5896735f, 53.4886970f, 49.0498182f, 22.7837109f, 30.9365408f, 0.4874693f, 35.2284719f, 0.2779573f, 0.2895378f, 0.1116660f, 14.0482818f, 15.0457985f, 3.8701169f, 2.0979466f, 2.3942261f, 2.4442207f, 15.9540948f, 52.4460192f, 54.5195987f, 40.0788993f, 20.2920710f, 37.3813150f, 0.4933062f, 64.3221662f, 0.2798232f, 0.3033298f, 0.1523093f, 14.3183302f, 15.9996650f, 6.8570177f };
+const float THETA_B[NUM_CLASSES] = { 3.3147326f, -0.9487036f, -0.9507933f, -0.3353751f, -1.0798607f };
+const float THETA_W[NUM_CLASSES][NUM_FEATURES] = {
+  { 0.0190006f, -0.0205482f, -0.1584592f, 0.0452066f, -0.0905829f, 0.0613590f, -0.2501907f, 0.2597367f, -0.0758832f, 0.3964913f, 0.2410129f, 0.0467126f, -0.1756326f, 0.2661861f, 0.3362321f, 0.1021904f, 0.1338929f, -0.1004965f, -0.1839093f, -0.2361110f, 0.4139554f, -0.2138732f, -0.1206647f, 0.1160153f, -0.4567969f, 0.0071990f, -0.1565403f, 0.9042333f, -0.2113689f, -0.4133700f, -0.0471498f, -0.4429267f, 0.3120495f, -0.0266241f, 0.0765278f, 0.1717500f, -0.0729649f, 0.0074435f, 0.0491933f, 0.1114154f, -0.1283445f, 0.1496719f, -0.0855999f, -0.0457935f, -0.3694999f, 0.1831050f, 0.0059305f, 0.0692159f, 0.0612108f, 0.1463518f, 0.1867715f, -0.0734986f, 0.2040535f, -0.2135247f, 0.1315508f, -0.1713566f, -0.1412802f, -0.0517797f, -0.0527308f, 0.0302174f, -0.0638786f, 0.1877928f, 0.2373857f, -0.2153633f, -0.0687909f, -0.0474289f, 0.1849679f, 0.0950081f },  // N
+  { 0.0070479f, 0.0661564f, 0.1832320f, -0.0405012f, 0.3017893f, 0.1494868f, -0.2924113f, 0.1366719f, 0.0706468f, 0.2140977f, -0.1961022f, 0.0749003f, 0.1838414f, 0.1537638f, -0.1049123f, -0.2131352f, 0.0331160f, 0.0851007f, -0.1036656f, 0.1874218f, -0.1258497f, 0.3105289f, -0.1414705f, -0.0398369f, -0.2160703f, -0.2546377f, -0.0741682f, 0.0772507f, -0.1172088f, 0.2770648f, 0.2202536f, -0.1063756f, 0.0144996f, 0.0978378f, -0.0768823f, 0.0797592f, 0.1807751f, 0.0408995f, 0.1955612f, 0.1953227f, -0.4702904f, 0.1864930f, 0.0341874f, 0.2380031f, -0.1919862f, 0.0897340f, 0.1522894f, 0.1618946f, -0.0596219f, -0.3588349f, -0.0179779f, -0.0197621f, 0.0407753f, 0.2819072f, -0.1898748f, 0.5603779f, 0.0405833f, -0.4474527f, 0.1099977f, -0.0040920f, 0.0506956f, 0.0297073f, 0.0575582f, 0.2717240f, 0.4258728f, -0.1080331f, -0.2791494f, 0.0725415f },  // adelante
+  { 0.1963630f, -0.0427197f, -0.0690778f, -0.1481516f, -0.0841743f, -0.1921871f, 0.6070882f, -0.2208169f, 0.2709934f, -0.4222654f, 0.0742838f, -0.0086657f, -0.0299175f, -0.4308724f, 0.2989076f, 0.2175137f, -0.2598715f, -0.1604933f, -0.1717457f, 0.3720643f, 0.1453375f, 0.2051273f, -0.4100272f, 0.7398149f, -0.1123431f, 0.8448747f, 0.0427908f, -0.3180886f, -0.2185043f, 0.4090780f, 0.1246283f, -0.0400935f, 0.0638838f, -0.2732804f, 0.2671969f, 0.0013233f, -0.2139879f, -0.1575807f, -0.2110812f, 0.0569359f, 0.5234274f, -0.0160700f, 0.2128453f, -0.3535154f, 0.3381216f, 0.0501324f, -0.2108932f, -0.4549615f, 0.2405436f, 0.2522102f, -0.2368723f, 0.1953169f, -0.0433008f, -0.0525107f, -0.0147247f, -0.0433124f, -0.3490992f, 0.8169001f, -0.1838702f, 0.2853385f, -0.1463519f, -0.0495804f, -0.0193110f, -0.0133427f, -0.4100425f, 0.2315271f, 0.3006434f, -0.1856830f },  // atras
+  { 0.0142978f, -0.0629136f, -0.0523159f, -0.4080136f, -0.0154796f, 0.2539397f, -0.2016077f, 0.1024418f, -0.1186247f, 0.7375052f, -0.3476406f, -0.2138709f, -0.0591493f, 0.0410486f, -0.3000514f, 0.0695665f, -0.3318615f, 0.3127775f, 0.1329709f, -0.2825962f, -0.4714834f, -0.1847407f, 0.6013606f, -0.2427719f, 0.5924882f, -0.5382881f, 0.2819712f, -0.3597660f, 0.2461522f, -0.2336528f, 0.0023102f, 0.0420636f, -0.3195488f, -0.1098790f, -0.0995448f, -0.2374914f, 0.0696888f, -0.1417869f, 0.0430195f, -0.4601735f, -0.1316242f, 0.0554905f, 0.0227057f, 0.2807701f, -0.0796003f, -0.3268189f, 0.0347911f, 0.1718048f, 0.0642180f, 0.0838957f, -0.4015042f, 0.0635685f, -0.2683670f, -0.0731682f, -0.4351620f, -0.1627465f, 0.3020258f, -0.3015926f, 0.3736522f, -0.1749595f, 0.6545451f, -0.0485055f, -0.3251985f, -0.0848626f, 0.1304721f, -0.0867418f, -0.1233566f, -0.4013097f },  // derecha
+  { -0.2367092f, 0.0600251f, 0.0966209f, 0.5514598f, -0.1115524f, -0.2725984f, 0.1371215f, -0.2780335f, -0.1471323f, -0.9258289f, 0.2284461f, 0.1009237f, 0.0808581f, -0.0301261f, -0.2301760f, -0.1761354f, 0.4247241f, -0.1368883f, 0.3263498f, -0.0407790f, 0.0380402f, -0.1170423f, 0.0708018f, -0.5732215f, 0.1927220f, -0.0591479f, -0.0940536f, -0.3036294f, 0.3009298f, -0.0391200f, -0.3000423f, 0.5473322f, -0.0708840f, 0.3119457f, -0.1672975f, -0.0153411f, 0.0364890f, 0.2510247f, -0.0766928f, 0.0964994f, 0.2068317f, -0.3755854f, -0.1841384f, -0.1194643f, 0.3029647f, 0.0038475f, 0.0178821f, 0.0520461f, -0.3063505f, -0.1236228f, 0.4695828f, -0.1656247f, 0.0668391f, 0.0572964f, 0.5082108f, -0.1829623f, 0.1477702f, -0.0160750f, -0.2470488f, -0.1365045f, -0.4950103f, -0.1194142f, 0.0495657f, 0.0418446f, -0.0775115f, 0.0106766f, -0.0831053f, 0.4194432f },  // izquierda
+};
+// ===== FIN MODELO =====
 
+// ===================== WI-FI / UDP =====================
 const char* ssid = "Guante_IMU";
 const char* password = "12345678";
-
 const unsigned int udpPort = 5000;
 WiFiUDP udp;
-
-IPAddress pcIP(192, 168, 4, 255); 
+IPAddress pcIP(192, 168, 4, 255);   // broadcast hasta que el PC escriba
 unsigned int pcPort = udpPort;
-bool pcConnected = false;
 
-// Estado de los sensores
-bool lsm6_ok = false;
-bool lis3mdl_ok = false;
-
-void sendMessage(const char* message) {
+void sendMessage(const char* msg) {
   udp.beginPacket(pcIP, pcPort);
-  udp.print(message);
+  udp.print(msg);
   udp.endPacket();
 }
 
-void actualizarIPCliente() {
-  int packetSize = udp.parsePacket();
-  if (packetSize) {
-    pcIP = udp.remoteIP();
-    pcPort = udp.remotePort();
-    pcConnected = true;
-  }
-}
-
-// ==============================================================================
-// 2. PARÁMETROS DEL MODELO Y PREDICCIÓN
-// ==============================================================================
-
-const int NUM_FEATURES = 76;
-const int NUM_CLASSES = 5;
-
-const char* CLASS_NAMES[NUM_CLASSES] = {
-  "N", "adelante", "atras", "izquierda", "derecha"
-};
-
-const float SCALER_MEAN[NUM_FEATURES] = { -8.843102f, -0.025414f, 0.421956f, 5.172899f, 2.269647f, -6.094260f, -55.872810f, -63.972409f, 10.063589f, 9.699118f, 57.044426f, 234.748204f, -0.403386f, 1.289833f, -0.936661f, 0.216854f, 0.810340f, -4.791716f, 1.673755f, 0.297028f, 0.427257f, 0.374194f, 6.893499f, 12.927133f, 13.755418f, 6.335418f, 3.576971f, 3.739085f, 0.233794f, 18.586306f, 5.116888f, 0.458050f, 0.053482f, 0.131066f, 0.025257f, 3.638327f, 3.106577f, 1.069220f, -9.346291f, -0.774264f, -0.206230f, -6.024267f, -18.181639f, -28.186434f, -64.956884f, -68.629484f, 5.021558f, 9.291558f, 29.578999f, 227.692869f, -1.081678f, 1.196933f, -1.100644f, 0.182737f, -5.546886f, -10.011796f, -0.107553f, -8.334696f, 0.728316f, 1.059468f, 16.610068f, 22.794442f, 16.008466f, -47.153216f, -59.139402f, 15.293478f, 10.123795f, 88.243844f, 241.976622f, 0.432860f, 1.375746f, -0.776056f, 0.253100f, 7.233305f, 0.531588f, 3.677197f };
-const float SCALER_SCALE[NUM_FEATURES] = { 1.830464f, 2.206545f, 2.620323f, 13.227621f, 53.470074f, 48.364095f, 78.828713f, 40.726824f, 208.002869f, 0.241892f, 49.136463f, 58.654277f, 1.137813f, 0.334768f, 1.621160f, 0.286057f, 12.957087f, 15.931982f, 4.838368f, 0.323647f, 0.386128f, 0.346983f, 6.505030f, 12.675452f, 14.657004f, 7.188953f, 3.148248f, 5.320749f, 0.252309f, 15.808170f, 6.077801f, 0.605583f, 0.048266f, 0.537852f, 0.032140f, 3.121255f, 2.858980f, 1.558862f, 1.563260f, 2.255472f, 2.727070f, 16.130904f, 56.232956f, 53.535960f, 82.727759f, 40.015360f, 208.440915f, 0.491059f, 35.419093f, 57.350532f, 1.294286f, 0.374051f, 1.620579f, 0.278994f, 14.038081f, 15.759791f, 3.917317f, 2.127033f, 2.341283f, 2.613305f, 17.810160f, 55.232535f, 53.921277f, 75.382323f, 41.560804f, 207.735028f, 0.507230f, 65.483400f, 60.227697f, 1.416809f, 0.294392f, 1.787719f, 0.298053f, 14.479670f, 17.480592f, 7.019462f };
-
-const float THETA_W[5][76] = {
-    { -1.773457f, -0.255190f, 0.746362f, 0.055974f, -0.388088f, 0.786395f, 0.159556f, -0.119267f, 0.261996f, -3.678699f, -4.996797f, -0.541191f, 0.252799f, 1.849189f, -1.160640f, -0.247956f, 0.195882f, -0.863346f, -1.177081f, -2.379232f, -1.756658f, -2.281898f, -0.566122f, -3.843086f, -2.914969f, -1.374070f, -0.109944f, -1.925742f, -1.975380f, -4.698447f, -1.457212f, -0.206953f, -2.408865f, -1.247647f, -0.918896f, -1.327819f, -1.947292f, -2.608264f, -1.573262f, 0.361719f, 1.178907f, 0.111715f, 0.910383f, 1.894803f, 0.452740f, -0.079666f, 0.345950f, 0.141153f, -3.863163f, -0.263019f, 0.415313f, 2.111369f, -0.634220f, -0.158229f, 0.024390f, -0.494862f, 0.132736f, -2.159979f, -0.333232f, 0.386112f, -0.488695f, -1.797384f, -0.597452f, 0.001750f, -0.250625f, 0.189016f, -2.681684f, -5.636264f, -0.859813f, -0.814006f, 1.603726f, -1.514057f, -0.550330f, -0.483014f, -1.283661f, -1.930355f },
-    { 0.389119f, -0.323640f, 1.084502f, -0.016284f, -1.443672f, 0.225293f, 0.022443f, 0.144234f, 0.200123f, 2.300863f, -1.039868f, 0.281743f, -0.323127f, 0.308581f, 0.224026f, -0.254363f, -0.446101f, 1.285718f, -0.187617f, 1.438223f, -0.645929f, 0.854634f, -0.243330f, 2.048105f, -0.600373f, 1.325628f, -0.050960f, -0.631945f, 0.278995f, -1.791242f, -0.083082f, -0.090100f, 0.552709f, -0.078528f, -0.423021f, -0.290912f, -0.389939f, -0.293198f, -0.186546f, 0.140976f, 1.585351f, 0.820885f, 0.001989f, 0.055563f, -0.317195f, 0.143528f, 0.200267f, 0.930793f, -0.144089f, 0.279705f, -1.174254f, 0.234440f, 0.008196f, 0.056579f, -0.333269f, -0.060149f, 0.015295f, 0.511303f, -0.492929f, 2.122941f, 0.512312f, 1.910898f, -0.462172f, -0.017871f, 0.072322f, 0.120082f, 0.202381f, -1.259594f, 0.164843f, -0.157833f, 0.683062f, -0.127668f, -0.065848f, -0.925936f, -0.108381f, -0.263159f },
-    { -1.338391f, 0.387010f, -0.878890f, -0.539859f, 1.095390f, -0.503788f, -0.084459f, -0.217710f, -0.022143f, -1.471341f, 0.039519f, -0.092315f, -0.367228f, -0.875329f, -0.277388f, 0.237293f, 0.115984f, -1.666531f, -0.503187f, -0.814877f, -0.755399f, 0.654889f, 0.269127f, 0.737758f, -1.166865f, -1.527202f, -0.345982f, 1.731342f, 0.292392f, -0.378566f, -0.898812f, 0.171595f, -0.695307f, -0.012269f, 0.607725f, -0.333059f, 0.860418f, 0.171640f, -0.840588f, 0.141266f, -2.036449f, -0.652716f, -1.776456f, 0.623061f, 0.266723f, 0.047636f, -0.098352f, -1.129672f, 0.472224f, -0.098471f, 0.229079f, -0.707303f, -0.092479f, -0.218674f, 0.604609f, -0.532025f, -0.780081f, -1.193477f, -0.095242f, -1.689454f, -0.433281f, -0.550514f, -0.324750f, 0.090192f, -0.112533f, 0.055372f, -0.526574f, 0.238751f, -0.125521f, 0.225157f, -1.062996f, -0.118458f, 0.116244f, 0.622032f, 0.221378f, -0.069107f },
-    { -0.572996f, -1.474396f, 0.024638f, -0.760520f, 0.199537f, -0.024660f, -0.114823f, -0.164123f, -0.426089f, 1.760987f, -1.586359f, 0.245554f, 1.527683f, -0.223944f, 0.982766f, 0.015505f, -1.069192f, 0.094761f, -0.306957f, 0.591875f, 0.639080f, -1.645731f, -0.052357f, -1.990108f, 3.031491f, 0.287977f, -0.455426f, -0.741208f, 0.213126f, -1.894107f, 0.316589f, -0.605681f, 0.069091f, 0.223907f, -0.586061f, 0.827332f, -1.211002f, -0.573468f, -0.865107f, -2.307509f, 0.354727f, -0.959847f, 0.853034f, -0.923243f, -0.075992f, -0.109338f, -0.377644f, 0.497482f, -0.732273f, 0.140571f, 0.778912f, -0.217482f, 0.465390f, 0.113580f, -0.325800f, 0.418631f, -0.118346f, -0.438379f, -1.540100f, -0.291191f, -0.662203f, -0.490334f, 2.489117f, -0.034138f, -0.166231f, -0.449676f, 0.762378f, -1.109012f, 0.134305f, 0.776955f, 0.122295f, 0.808700f, -0.115873f, 0.607440f, -0.167298f, -0.525992f },
-    { -0.394624f, 1.148066f, 0.688174f, 0.742733f, -0.615823f, -0.129209f, 0.104374f, 0.368974f, 0.165355f, -0.942371f, 0.604788f, -0.108855f, -0.815853f, 0.722784f, -0.591789f, -0.534028f, 1.050449f, 0.105552f, 0.781680f, -0.288015f, 1.193133f, -1.204380f, 0.022490f, -1.120544f, 1.376086f, -1.244577f, 0.189277f, -0.970203f, -0.562080f, -0.353149f, -0.678041f, 0.283409f, -0.029885f, 0.298835f, -0.953954f, 0.532535f, -1.192094f, 0.338601f, -0.175608f, 1.023617f, 0.880083f, 1.026954f, 0.040345f, -1.802444f, 0.294744f, 0.272499f, 0.211525f, -0.269022f, 1.071202f, 0.005592f, -0.315854f, 0.470960f, -1.019262f, -0.358180f, -0.268033f, 0.282532f, 0.984338f, -0.036479f, 1.932370f, 0.525890f, 0.975600f, -0.875086f, -0.528221f, -0.070866f, 0.413629f, 0.131748f, -0.996913f, 0.500913f, -0.206611f, -0.305333f, 0.767605f, -0.882369f, -0.709054f, 0.546696f, -0.260072f, 0.869856f }
-};
-
-const float THETA_B[NUM_CLASSES] = { -54.798575f, -3.417022f, -3.626348f, -9.029684f, -5.959866f };
-
-int predecir_direccion(float x_raw[]) {
-  float x_scaled[NUM_FEATURES];
-  for (int j = 0; j < NUM_FEATURES; j++) {
-    x_scaled[j] = (x_raw[j] - SCALER_MEAN[j]) / SCALER_SCALE[j];
-  }
-
-  float max_z = -1e9;
-  int mejor_clase = 0;
-
-  for (int k = 0; k < NUM_CLASSES; k++) {
-    float z_k = THETA_B[k];
-    for (int j = 0; j < NUM_FEATURES; j++) {
-      z_k += THETA_W[k][j] * x_scaled[j];
-    }
-    if (z_k > max_z) {
-      max_z = z_k;
-      mejor_clase = k;
-    }
-  }
-  return mejor_clase;
-}
-
-// ==============================================================================
-// 3. I2C, SENSORES Y FEATURE ENGINEERING
-// ==============================================================================
-
+// ===================== SENSORES =====================
 #define SDA_PIN 13
 #define SCL_PIN 14
-
 LSM6 imu;
 LIS3MDL mag;
+bool sensores_ok = false;
 
-const unsigned long sampleInterval = 10; 
+// Mismas conversiones que receptorDB2.py
+const float K_ACC = 0.000061f * 9.80665f;  // cuentas -> m/s^2
+const float K_GYR = 0.00875f;              // cuentas -> °/s
+const float K_MAG = 0.15f;                 // cuentas -> unidades del CSV
+
+const unsigned long sampleInterval = 10;   // 100 Hz, igual que la grabación
 unsigned long lastSample = 0;
 
-const int WINDOW_SIZE = 20;
-const int STEP_SIZE = 5;
-const int RAW_FEATURES = 19;
+// Referencia del magnetómetro (posición neutra al encender)
+const int N_REF = 100;                     // 1 s quieto
+float mref[3] = {0, 0, 0};
+float mref_acc[3] = {0, 0, 0};
+int ref_count = 0;
+bool ref_lista = false;
 
-float window_buffer[WINDOW_SIZE][RAW_FEATURES];
-int sample_count = 0;
-int step_counter = 0;
+// BEGIN_CORE (C puro: igual a features_base() y ventanas del notebook)
+float ventana[WINDOW_SIZE][N_BASE];
+int idx_ventana = 0, llenas = 0, paso = 0;
 
-void calcular_features_instantaneas(float ax, float ay, float az, 
-                                     float wx, float wy, float wz, 
-                                     float mx, float my, float mz, 
-                                     float out_feat[19]) {
-  float a_mag = sqrt(ax*ax + ay*ay + az*az);
-  float w_mag = sqrt(wx*wx + wy*wy + wz*wz);
-  float m_mag = sqrt(mx*mx + my*my + mz*mz);
-
-  float roll_acc  = atan2(ay, az);
-  float pitch_acc = atan2(-ax, sqrt(ay*ay + az*az));
-  float roll_mag  = atan2(my, mz);
-  float pitch_mag = atan2(-mx, sqrt(my*my + mz*mz));
-
-  float ax_ay = ax * ay;
-  float ax_az = ax * az;
-  float ay_az = ay * az;
-
-  out_feat[0] = ax;       out_feat[1] = ay;       out_feat[2] = az;
-  out_feat[3] = wx;       out_feat[4] = wy;       out_feat[5] = wz;
-  out_feat[6] = mx;       out_feat[7] = my;       out_feat[8] = mz;
-  out_feat[9] = a_mag;    out_feat[10] = w_mag;   out_feat[11] = m_mag;
-  out_feat[12] = roll_acc; out_feat[13] = pitch_acc;
-  out_feat[14] = roll_mag; out_feat[15] = pitch_mag;
-  out_feat[16] = ax_ay;   out_feat[17] = ax_az;   out_feat[18] = ay_az;
+void features_base(const float a[3], const float w[3], const float m[3],
+                   const float ref[3], float f[N_BASE]) {
+  float ax = a[0], ay = a[1], az = a[2];
+  float wx = w[0], wy = w[1], wz = w[2];
+  float nm = sqrtf(m[0]*m[0] + m[1]*m[1] + m[2]*m[2]);
+  float nr = sqrtf(ref[0]*ref[0] + ref[1]*ref[1] + ref[2]*ref[2]);
+  float c = (m[0]*ref[0] + m[1]*ref[1] + m[2]*ref[2]) / (nm * nr + 1e-6f);
+  if (c > 1) c = 1;
+  if (c < -1) c = -1;
+  f[0] = ax;  f[1] = ay;  f[2] = az;
+  f[3] = wx;  f[4] = wy;  f[5] = wz;
+  f[6] = m[0] - ref[0];  f[7] = m[1] - ref[1];  f[8] = m[2] - ref[2];  // mag relativo
+  f[9]  = sqrtf(ax*ax + ay*ay + az*az);
+  f[10] = sqrtf(wx*wx + wy*wy + wz*wz);
+  f[11] = atan2f(ay, sqrtf(ax*ax + az*az));   // inclinación y
+  f[12] = atan2f(az, sqrtf(ax*ax + ay*ay));   // inclinación z
+  f[13] = acosf(c);                           // giro respecto a la referencia
+  f[14] = ax*ay;  f[15] = ax*az;  f[16] = ay*az;
 }
 
-void extraer_estadisticas_ventana(float x_raw[76]) {
-  for (int col = 0; col < RAW_FEATURES; col++) {
-    float sum = 0.0f;
-    float vmin = window_buffer[0][col];
-    float vmax = window_buffer[0][col];
-
+// media, desviación (ddof=0), mínimo y máximo de la ventana
+void estadisticas(float x[NUM_FEATURES]) {
+  for (int j = 0; j < N_BASE; j++) {
+    float s = 0, vmin = ventana[0][j], vmax = ventana[0][j];
     for (int i = 0; i < WINDOW_SIZE; i++) {
-      float val = window_buffer[i][col];
-      sum += val;
-      if (val < vmin) vmin = val;
-      if (val > vmax) vmax = val;
+      float v = ventana[i][j];
+      s += v;
+      if (v < vmin) vmin = v;
+      if (v > vmax) vmax = v;
     }
-
-    float mean = sum / WINDOW_SIZE;
-
-    float sq_diff_sum = 0.0f;
+    float media = s / WINDOW_SIZE, sq = 0;
     for (int i = 0; i < WINDOW_SIZE; i++) {
-      float diff = window_buffer[i][col] - mean;
-      sq_diff_sum += diff * diff;
+      float d = ventana[i][j] - media;
+      sq += d * d;
     }
-    float std_dev = sqrt(sq_diff_sum / WINDOW_SIZE);
-
-    x_raw[col]                  = mean;
-    x_raw[col + RAW_FEATURES]   = std_dev;
-    x_raw[col + 2*RAW_FEATURES] = vmin;
-    x_raw[col + 3*RAW_FEATURES] = vmax;
+    x[j] = media;
+    x[j + N_BASE] = sqrtf(sq / WINDOW_SIZE);
+    x[j + 2*N_BASE] = vmin;
+    x[j + 3*N_BASE] = vmax;
   }
 }
 
-void procesar_lectura_e_inferir(float ax, float ay, float az, 
-                                float wx, float wy, float wz, 
-                                float mx, float my, float mz) {
-  float feat_19[RAW_FEATURES];
-  calcular_features_instantaneas(ax, ay, az, wx, wy, wz, mx, my, mz, feat_19);
-
-  if (sample_count >= WINDOW_SIZE) {
-    for (int i = 0; i < WINDOW_SIZE - 1; i++) {
-      for (int j = 0; j < RAW_FEATURES; j++) {
-        window_buffer[i][j] = window_buffer[i + 1][j];
-      }
-    }
-    for (int j = 0; j < RAW_FEATURES; j++) {
-      window_buffer[WINDOW_SIZE - 1][j] = feat_19[j];
-    }
-  } else {
-    for (int j = 0; j < RAW_FEATURES; j++) {
-      window_buffer[sample_count][j] = feat_19[j];
-    }
-    sample_count++;
+// Softmax: z_k = theta_k0 + sum(theta_kj * x~_j),  P_k = exp(z_k) / sum(exp(z_i))
+int predecir(const float x[NUM_FEATURES], float prob[NUM_CLASSES]) {
+  float z[NUM_CLASSES], zmax = -1e30f;
+  for (int k = 0; k < NUM_CLASSES; k++) {
+    z[k] = THETA_B[k];
+    for (int j = 0; j < NUM_FEATURES; j++)
+      z[k] += THETA_W[k][j] * (x[j] - SCALER_MEAN[j]) / SCALER_SCALE[j];  // normaliza
+    if (z[k] > zmax) zmax = z[k];
   }
-
-  step_counter++;
-
-  if (sample_count == WINDOW_SIZE && step_counter >= STEP_SIZE) {
-    step_counter = 0;
-
-    float x_raw_76[76];
-    extraer_estadisticas_ventana(x_raw_76);
-
-    int clase_id = predecir_direccion(x_raw_76);
-
-    char mensaje_prediccion[64];
-    snprintf(mensaje_prediccion, sizeof(mensaje_prediccion), "PRED,%s", CLASS_NAMES[clase_id]);
-    sendMessage(mensaje_prediccion);
+  float suma = 0;
+  int mejor = 0;
+  for (int k = 0; k < NUM_CLASSES; k++) {
+    prob[k] = expf(z[k] - zmax);
+    suma += prob[k];
   }
+  for (int k = 0; k < NUM_CLASSES; k++) {
+    prob[k] /= suma;
+    if (prob[k] > prob[mejor]) mejor = k;
+  }
+  return mejor;
 }
 
-// ==============================================================================
-// 4. SETUP Y LOOP PRINCIPAL
-// ==============================================================================
+// Agrega una muestra; devuelve la clase o -1 si aún no toca predecir
+int nueva_muestra(const float a[3], const float w[3], const float m[3],
+                  const float ref[3], float prob[NUM_CLASSES]) {
+  features_base(a, w, m, ref, ventana[idx_ventana]);   // buffer circular
+  idx_ventana = (idx_ventana + 1) % WINDOW_SIZE;
+  if (llenas < WINDOW_SIZE) llenas++;
+  paso++;
+  if (llenas < WINDOW_SIZE || paso < STEP_SIZE) return -1;
+  paso = 0;
+  float x[NUM_FEATURES];
+  estadisticas(x);
+  return predecir(x, prob);
+}
+// END_CORE
 
-unsigned long lastHeartbeat = 0;
-unsigned long loopCount = 0;
+void reiniciar_referencia() {
+  ref_count = 0;
+  ref_lista = false;
+  llenas = 0;
+  mref_acc[0] = mref_acc[1] = mref_acc[2] = 0;
+  sendMessage("STATUS,CALIBRANDO_NEUTRO_1s");
+  Serial.println("Calibrando neutro: deje el joystick quieto 1 s");
+}
+
+// Guarda la IP del PC y atiende el comando ZERO
+void revisarUDP() {
+  int n = udp.parsePacket();
+  if (!n) return;
+  pcIP = udp.remoteIP();
+  pcPort = udp.remotePort();
+  char buf[16] = {0};
+  udp.read(buf, sizeof(buf) - 1);
+  if (strncmp(buf, "ZERO", 4) == 0) reiniciar_referencia();
+}
 
 void setup() {
-  // Inicialización de punto de acceso y UDP de forma rápida
+  Serial.begin(115200);
   WiFi.softAP(ssid, password);
   delay(100);
   udp.begin(udpPort);
 
-  // Intentar inicializar I2C sin bloquer el microcontrolador
   Wire.begin(SDA_PIN, SCL_PIN);
-  Wire.setTimeOut(100); // Evitar cuelgue indefinido si las líneas SDA/SCL fallan
+  Wire.setTimeOut(100);
+  bool ok_imu = imu.init();
+  bool ok_mag = mag.init();
+  if (ok_imu) imu.enableDefault();   // ±2 g, 245 °/s (igual que al grabar)
+  if (ok_mag) mag.enableDefault();
+  sensores_ok = ok_imu && ok_mag;
 
-  // Probar LSM6
-  if (imu.init()) {
-    imu.enableDefault();
-    lsm6_ok = true;
-  }
-
-  // Probar LIS3MDL
-  if (mag.init()) {
-    mag.enableDefault();
-    lis3mdl_ok = true;
-  }
+  Serial.println(sensores_ok ? "Sensores OK" : "ERROR: sensor no detectado");
+  reiniciar_referencia();
 }
 
 void loop() {
-  actualizarIPCliente();
-
-  unsigned long currentTime = millis();
-  loopCount++;
-
-  // 1. Mensaje de Latido (Heartbeat) enviado cada 1 segundo por Wi-Fi
-  if (currentTime - lastHeartbeat >= 1000) {
-    lastHeartbeat = currentTime;
-
-    char diagBuf[128];
-    snprintf(diagBuf, sizeof(diagBuf), "DIAG,loop=%lu,LSM6=%s,LIS3MDL=%s,PC_IP=%d.%d.%d.%d",
-             loopCount,
-             lsm6_ok ? "OK" : "FAIL",
-             lis3mdl_ok ? "OK" : "FAIL",
-             pcIP[0], pcIP[1], pcIP[2], pcIP[3]);
-             
-    sendMessage(diagBuf);
+  revisarUDP();
+  if (!sensores_ok) {
+    sendMessage("ERROR,SENSOR");
+    delay(1000);
+    return;
   }
+  unsigned long t = millis();
+  if (t - lastSample < sampleInterval) return;
+  lastSample = t;
 
-  // 2. Procesar lectura de sensores solo si ambos inicializaron bien
-  if (lsm6_ok && lis3mdl_ok) {
-    if (currentTime - lastSample >= sampleInterval) {
-      lastSample = currentTime;
+  imu.read();
+  mag.read();
 
-      imu.read();
-      mag.read();
+  // Unidades + intercambio Y<->Z, exactamente como receptorDB2.py
+  float a[3] = { imu.a.x * K_ACC, imu.a.z * K_ACC, imu.a.y * K_ACC };
+  float w[3] = { imu.g.x * K_GYR, imu.g.z * K_GYR, imu.g.y * K_GYR };
+  float m[3] = { mag.m.x * K_MAG, mag.m.z * K_MAG, mag.m.y * K_MAG };
 
-      procesar_lectura_e_inferir(
-        imu.a.x, imu.a.y, imu.a.z,
-        imu.g.x, imu.g.y, imu.g.z,
-        mag.m.x, mag.m.y, mag.m.z
-      );
+  // Primer segundo: referencia del magnetómetro en neutro
+  if (!ref_lista) {
+    for (int i = 0; i < 3; i++) mref_acc[i] += m[i];
+    if (++ref_count >= N_REF) {
+      for (int i = 0; i < 3; i++) mref[i] = mref_acc[i] / N_REF;
+      ref_lista = true;
+      sendMessage("STATUS,LISTO");
+      Serial.println("Listo");
     }
+    return;
   }
+
+  float prob[NUM_CLASSES];
+  int k = nueva_muestra(a, w, m, mref, prob);
+  if (k < 0) return;
+
+  char msg[64];
+  snprintf(msg, sizeof(msg), "PRED,%s,%.2f", CLASS_NAMES[k], prob[k]);
+  sendMessage(msg);
+  Serial.println(msg);
 }
